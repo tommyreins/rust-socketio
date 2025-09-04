@@ -161,7 +161,7 @@ impl Socket {
         Ok(socket_packet)
     }
 
-    fn is_engineio_connected(&self) -> bool {
+    pub fn is_engineio_connected(&self) -> bool {
         self.engine_client.is_connected()
     }
 }
