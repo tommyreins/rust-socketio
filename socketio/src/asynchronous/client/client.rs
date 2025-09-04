@@ -42,7 +42,7 @@ use crate::{
     CloseReason, Event, Payload,
 };
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 enum DisconnectReason {
     /// There is no known reason for the disconnect; likely a network error
     #[default]
@@ -548,7 +548,7 @@ impl Client {
 
     /// Check if the underlying TCP socket is connected
     /// Returns Ok(true) if TCP is healthy, Ok(false) if down, Err if can't determine
-    pub async fn is_tcp_connected(&self) -> Result<bool, Error> {
+    pub async fn is_tcp_connected(&self) -> Result<bool> {
         // Access the engine.io client's underlying socket connection status
         let socket = self.socket.read().await;
         // The engine.io client's is_connected method checks the transport layer
@@ -557,7 +557,7 @@ impl Client {
 
     /// Return elapsed time in milliseconds since last successful communication
     /// Useful for detecting stale connections
-    pub async fn get_last_communication_time(&self) -> Result<u64, Error> {
+    pub async fn get_last_communication_time(&self) -> Result<u64> {
         let socket = self.socket.read().await;
         // Get the underlying engine.io client's last communication time
         // This is the time since the most recent ping sent or pong received
@@ -566,7 +566,7 @@ impl Client {
     }
 
     /// Return comprehensive connection health info
-    pub async fn get_connection_health(&self) -> Result<ConnectionHealth, Error> {
+    pub async fn get_connection_health(&self) -> Result<ConnectionHealth> {
         let socket = self.socket.read().await;
 
         // Get socket.io connection status (whether we're connected at the socket.io level)

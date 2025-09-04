@@ -167,18 +167,18 @@ impl Socket {
 
     /// Get the timestamp of the last successful communication
     /// Returns the maximum of last ping sent or last pong received in milliseconds since Unix epoch
-    pub async fn get_last_communication_time(&self) -> Result<u64, crate::Error> {
+    pub async fn get_last_communication_time(&self) -> Result<u64> {
         // Get the last communication time from the underlying engine.io client
         Ok(self.engine_client.get_last_communication_time().await)
     }
 
     /// Get the timestamp of the last ping sent in milliseconds since Unix epoch
-    pub async fn get_last_ping_time(&self) -> Result<Option<u64>, crate::Error> {
+    pub async fn get_last_ping_time(&self) -> Result<Option<u64>> {
         Ok(self.engine_client.get_last_ping_time().await)
     }
 
     /// Get the timestamp of the last pong received in milliseconds since Unix epoch
-    pub async fn get_last_pong_time(&self) -> Result<Option<u64>, crate::Error> {
+    pub async fn get_last_pong_time(&self) -> Result<Option<u64>> {
         Ok(self.engine_client.get_last_pong_time().await)
     }
 
@@ -188,7 +188,7 @@ impl Socket {
     }
 
     /// Get the time remaining until the next ping should be received in milliseconds
-    pub async fn get_time_to_next_ping(&self) -> Result<u64, crate::Error> {
+    pub async fn get_time_to_next_ping(&self) -> Result<u64> {
         Ok(self.engine_client.get_time_to_next_ping().await)
     }
 }
