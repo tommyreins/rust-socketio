@@ -67,6 +67,32 @@ impl Client {
     pub fn is_connected(&self) -> bool {
         self.socket.is_connected()
     }
+
+    /// Get the timestamp of the last successful communication
+    /// Returns the maximum of last ping sent or last pong received in milliseconds since Unix epoch
+    pub async fn get_last_communication_time(&self) -> u64 {
+        self.socket.get_last_communication_time().await
+    }
+
+    /// Get the timestamp of the last ping sent in milliseconds since Unix epoch
+    pub async fn get_last_ping_time(&self) -> Option<u64> {
+        self.socket.get_last_ping_time().await
+    }
+
+    /// Get the timestamp of the last pong received in milliseconds since Unix epoch
+    pub async fn get_last_pong_time(&self) -> Option<u64> {
+        self.socket.get_last_pong_time().await
+    }
+
+    /// Get the maximum ping timeout configured in milliseconds
+    pub fn get_max_ping_timeout(&self) -> u64 {
+        self.socket.get_max_ping_timeout()
+    }
+
+    /// Get the time remaining until the next ping should be received in milliseconds
+    pub async fn get_time_to_next_ping(&self) -> u64 {
+        self.socket.get_time_to_next_ping().await
+    }
 }
 
 impl Stream for Client {

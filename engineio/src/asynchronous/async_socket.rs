@@ -200,6 +200,52 @@ impl Socket {
         self.connected.load(Ordering::Acquire)
     }
 
+    /// Get the elapsed time in milliseconds since the last successful communication
+    /// Returns the time since the most recent ping sent or pong received
+    pub async fn get_last_communication_time(&self) -> u64 {
+        let last_ping = *self.last_ping.lock().await;
+        let last_pong = *self.last_pong.lock().await;
+
+        // Get the maximum of last ping or last pong time
+        let last_comm_instant = if last_ping > last_pong { last_ping } else { last_pong };
+
+        // Return elapsed time since that communication
+        match Instant::now().checked_duration_since(last_comm_instant) {
+            Some(duration) => duration.as_millis() as u64,
+            None => 0, // Clock went backwards, return 0
+        }
+    }
+
+    /// Get the elapsed time in milliseconds since the last ping was sent
+    pub async fn get_last_ping_time(&self) -> Option<u64> {
+        let last_ping = *self.last_ping.lock().await;
+
+        match Instant::now().checked_duration_since(last_ping) {
+            Some(duration) => Some(duration.as_millis() as u64),
+            None => None, // Clock went backwards
+        }
+    }
+
+    /// Get the elapsed time in milliseconds since the last pong was received
+    pub async fn get_last_pong_time(&self) -> Option<u64> {
+        let last_pong = *self.last_pong.lock().await;
+
+        match Instant::now().checked_duration_since(last_pong) {
+            Some(duration) => Some(duration.as_millis() as u64),
+            None => None, // Clock went backwards
+        }
+    }
+
+    /// Get the maximum ping timeout configured in milliseconds
+    pub fn get_max_ping_timeout(&self) -> u64 {
+        self.max_ping_timeout
+    }
+
+    /// Get the time remaining until the next ping should be received in milliseconds
+    pub async fn get_time_to_next_ping(&self) -> u64 {
+        self.time_to_next_ping().await
+    }
+
     pub(crate) async fn pinged(&self) {
         *self.last_ping.lock().await = Instant::now();
     }

@@ -11,6 +11,25 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 
+/// Comprehensive connection health information
+#[derive(Debug, Clone)]
+pub struct ConnectionHealth {
+    /// Whether the socket.io connection is established
+    pub socketio_connected: bool,
+    /// Whether the underlying engine.io connection is established
+    pub engineio_connected: bool,
+    /// Elapsed time in milliseconds since the last ping was sent
+    pub last_ping_time: Option<u64>,
+    /// Elapsed time in milliseconds since the last pong was received
+    pub last_pong_time: Option<u64>,
+    /// Maximum ping timeout configured (in milliseconds)
+    pub max_ping_timeout: u64,
+    /// Time until next ping should be received (in milliseconds)
+    pub time_to_next_ping: u64,
+    /// Namespace the client is connected to
+    pub namespace: String,
+}
+
 use super::{
     ack::Ack,
     builder::ClientBuilder,
@@ -525,6 +544,59 @@ impl Client {
     /// no socket.io events have been received.
     pub async fn is_engineio_connected(&self) -> bool {
         self.socket.read().await.is_engineio_connected()
+    }
+
+    /// Check if the underlying TCP socket is connected
+    /// Returns Ok(true) if TCP is healthy, Ok(false) if down, Err if can't determine
+    pub async fn is_tcp_connected(&self) -> Result<bool, Error> {
+        // Access the engine.io client's underlying socket connection status
+        let socket = self.socket.read().await;
+        // The engine.io client's is_connected method checks the transport layer
+        Ok(socket.is_engineio_connected())
+    }
+
+    /// Return elapsed time in milliseconds since last successful communication
+    /// Useful for detecting stale connections
+    pub async fn get_last_communication_time(&self) -> Result<u64, Error> {
+        let socket = self.socket.read().await;
+        // Get the underlying engine.io client's last communication time
+        // This is the time since the most recent ping sent or pong received
+        let last_comm = socket.get_last_communication_time().await?;
+        Ok(last_comm)
+    }
+
+    /// Return comprehensive connection health info
+    pub async fn get_connection_health(&self) -> Result<ConnectionHealth, Error> {
+        let socket = self.socket.read().await;
+
+        // Get socket.io connection status (whether we're connected at the socket.io level)
+        let socketio_connected = *self.disconnect_reason.read().await == DisconnectReason::Unknown;
+
+        // Get engine.io connection status
+        let engineio_connected = socket.is_engineio_connected();
+
+        // Get ping/pong times
+        let last_ping_time = socket.get_last_ping_time().await?;
+        let last_pong_time = socket.get_last_pong_time().await?;
+
+        // Get ping timeout configuration
+        let max_ping_timeout = socket.get_max_ping_timeout();
+
+        // Get time to next ping
+        let time_to_next_ping = socket.get_time_to_next_ping().await?;
+
+        // Get namespace
+        let namespace = self.nsp.clone();
+
+        Ok(ConnectionHealth {
+            socketio_connected,
+            engineio_connected,
+            last_ping_time,
+            last_pong_time,
+            max_ping_timeout,
+            time_to_next_ping,
+            namespace,
+        })
     }
 
     /// Handles the incoming messages and classifies what callbacks to call and how.
