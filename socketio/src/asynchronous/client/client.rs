@@ -540,19 +540,25 @@ impl Client {
     }
 
     /// Returns whether the underlying engine.io connection is still active.
-    /// This can be used to check if the transport layer is connected even when
-    /// no socket.io events have been received.
+    /// This method now performs an actual connectivity test rather than just
+    /// checking the socket library's internal state, making it much more reliable.
     pub async fn is_engineio_connected(&self) -> bool {
-        self.socket.read().await.is_engineio_connected()
+        self.socket.read().await.is_connected().await
     }
 
-    /// Check if the underlying TCP socket is connected
+    /// Performs an immediate connectivity test to verify the actual network connection state.
+    /// This is the recommended method for checking connection status as it actually tests
+    /// the network connection rather than relying on socket library state.
+    pub async fn is_connected(&self) -> bool {
+        self.socket.read().await.is_connected().await
+    }
+
+    /// Check if the underlying TCP socket is connected by performing an actual connectivity test
     /// Returns Ok(true) if TCP is healthy, Ok(false) if down, Err if can't determine
     pub async fn is_tcp_connected(&self) -> Result<bool> {
-        // Access the engine.io client's underlying socket connection status
-        let socket = self.socket.read().await;
-        // The engine.io client's is_connected method checks the transport layer
-        Ok(socket.is_engineio_connected())
+        // Use the robust connectivity test instead of just checking socket library state
+        let is_connected = self.socket.read().await.is_connected().await;
+        Ok(is_connected)
     }
 
     /// Return elapsed time in milliseconds since last successful communication

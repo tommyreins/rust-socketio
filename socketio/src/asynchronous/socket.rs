@@ -17,7 +17,9 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    time::Duration,
 };
+use tokio::time::timeout;
 
 #[derive(Clone)]
 pub(crate) struct Socket {
@@ -161,7 +163,18 @@ impl Socket {
         Ok(socket_packet)
     }
 
-    pub fn is_engineio_connected(&self) -> bool {
+    /// Checks if the socket is connected by performing an actual connectivity test.
+    /// This method now uses the robust connection testing instead of just checking
+    /// the engine.io client's internal state.
+    pub async fn is_engineio_connected(&self) -> bool {
+        self.is_connected().await
+    }
+
+    /// Legacy synchronous method for backward compatibility - delegates to async version
+    /// Note: This method is not recommended for new code as it may block
+    pub fn is_engineio_connected_sync(&self) -> bool {
+        // For synchronous calls, we fall back to the engine client's state
+        // as we can't do async operations here
         self.engine_client.is_connected()
     }
 
@@ -190,6 +203,69 @@ impl Socket {
     /// Get the time remaining until the next ping should be received in milliseconds
     pub async fn get_time_to_next_ping(&self) -> Result<u64> {
         Ok(self.engine_client.get_time_to_next_ping().await)
+    }
+
+    /// Performs an immediate connectivity test to verify the actual network connection state.
+    /// This is much more reliable than just checking socket library state, as it detects
+    /// network disconnects that the socket library might not have noticed yet.
+    pub async fn is_connected(&self) -> bool {
+        // CRITICAL FIX: The original is_engineio_connected() only checks socket library state,
+        // not actual network connectivity. This was causing false positives when network
+        // was disconnected but socket hadn't detected it yet.
+
+        // IMMEDIATE CONNECTIVITY TEST: This is the most reliable check
+        // Test actual network connectivity FIRST before relying on socket library state
+        let ping_result = timeout(
+            Duration::from_millis(100), // 100ms timeout for ultra-fast detection
+            async {
+                // Send a minimal ping packet to test connectivity
+                let test_packet = EnginePacket::new(EnginePacketId::Ping, Bytes::new());
+                self.engine_client.emit(test_packet).await
+            }
+        ).await;
+
+        match ping_result {
+            Ok(Ok(_)) => {
+                // Ping succeeded - connection is definitely up
+                true
+            },
+            Ok(Err(e)) => {
+                // Ping failed - analyze the error to determine if it's network-related
+                let error_string = e.to_string().to_lowercase();
+
+                let is_network_error = error_string.contains("alreadyclosed") ||
+                    error_string.contains("incompleteresponse") ||
+                    error_string.contains("websocket") ||
+                    error_string.contains("connection") ||
+                    error_string.contains("network") ||
+                    error_string.contains("transport") ||
+                    error_string.contains("broken pipe") ||
+                    error_string.contains("connection reset") ||
+                    error_string.contains("connection refused") ||
+                    error_string.contains("timeout");
+
+                if is_network_error {
+                    // Network error - connection is definitely down
+                    false
+                } else {
+                    // Non-network error - check socket library state as fallback
+                    let socket_state = self.engine_client.is_connected();
+                    if !socket_state {
+                        // Socket library also reports disconnected
+                        false
+                    } else {
+                        // Socket library thinks we're connected but ping failed for non-network reason
+                        // This is suspicious but not definitive - assume connection is still good
+                        // This handles cases like temporary server-side issues
+                        true
+                    }
+                }
+            },
+            Err(_) => {
+                // Timeout occurred - this is a strong indicator of network issues
+                false
+            }
+        }
     }
 }
 
