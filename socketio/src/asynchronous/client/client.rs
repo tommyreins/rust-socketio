@@ -520,6 +520,13 @@ impl Client {
         Ok(())
     }
 
+    /// Returns whether the underlying engine.io connection is still active.
+    /// This can be used to check if the transport layer is connected even when
+    /// no socket.io events have been received.
+    pub async fn is_engineio_connected(&self) -> bool {
+        self.socket.read().await.is_engineio_connected()
+    }
+
     /// Handles the incoming messages and classifies what callbacks to call and how.
     /// This method is later registered as the callback for the `on_data` event of the
     /// engineio client.
