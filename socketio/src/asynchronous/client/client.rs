@@ -543,7 +543,8 @@ impl Client {
     /// This method now performs an actual connectivity test rather than just
     /// checking the socket library's internal state, making it much more reliable.
     pub async fn is_engineio_connected(&self) -> bool {
-        self.socket.read().await.is_connected().await
+        let socket = self.socket.read().await;
+        socket.is_connected().await
     }
 
     /// Performs an immediate connectivity test to verify the actual network connection state.
@@ -579,7 +580,7 @@ impl Client {
         let socketio_connected = *self.disconnect_reason.read().await == DisconnectReason::Unknown;
 
         // Get engine.io connection status
-        let engineio_connected = socket.is_engineio_connected().await;
+        let engineio_connected = socket.is_engineio_connected_sync();
 
         // Get ping/pong times
         let last_ping_time = socket.get_last_ping_time().await?;

@@ -54,7 +54,7 @@ impl Socket {
     /// Disconnects from the server by sending a socket.io `Disconnect` packet. This results
     /// in the underlying engine.io transport to get closed as well.
     pub async fn disconnect(&self) -> Result<()> {
-        if self.is_engineio_connected().await {
+        if self.is_engineio_connected_sync() {
             self.engine_client.disconnect().await?;
         }
         if self.connected.load(Ordering::Acquire) {
@@ -65,7 +65,7 @@ impl Socket {
 
     /// Sends a `socket.io` packet to the server using the `engine.io` client.
     pub async fn send(&self, packet: Packet) -> Result<()> {
-        if !self.is_engineio_connected().await || !self.connected.load(Ordering::Acquire) {
+        if !self.is_engineio_connected_sync() || !self.connected.load(Ordering::Acquire) {
             return Err(Error::IllegalActionBeforeOpen());
         }
 
@@ -170,11 +170,11 @@ impl Socket {
         self.is_connected().await
     }
 
-    /// Legacy synchronous method for backward compatibility - delegates to async version
-    /// Note: This method is not recommended for new code as it may block
+    /// Synchronous method for connection checks during initial establishment.
+    /// Uses basic engine.io connectivity check to avoid interfering with handshake.
     pub fn is_engineio_connected_sync(&self) -> bool {
-        // For synchronous calls, we fall back to the engine client's state
-        // as we can't do async operations here
+        // For synchronous calls during connection establishment,
+        // use the basic check to avoid interfering with the handshake
         self.engine_client.is_connected()
     }
 
