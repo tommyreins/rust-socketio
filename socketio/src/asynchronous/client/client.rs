@@ -579,7 +579,7 @@ impl Client {
         let socketio_connected = *self.disconnect_reason.read().await == DisconnectReason::Unknown;
 
         // Get engine.io connection status
-        let engineio_connected = socket.is_engineio_connected();
+        let engineio_connected = socket.is_engineio_connected().await;
 
         // Get ping/pong times
         let last_ping_time = socket.get_last_ping_time().await?;

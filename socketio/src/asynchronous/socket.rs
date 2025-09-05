@@ -54,7 +54,7 @@ impl Socket {
     /// Disconnects from the server by sending a socket.io `Disconnect` packet. This results
     /// in the underlying engine.io transport to get closed as well.
     pub async fn disconnect(&self) -> Result<()> {
-        if self.is_engineio_connected() {
+        if self.is_engineio_connected().await {
             self.engine_client.disconnect().await?;
         }
         if self.connected.load(Ordering::Acquire) {
@@ -65,7 +65,7 @@ impl Socket {
 
     /// Sends a `socket.io` packet to the server using the `engine.io` client.
     pub async fn send(&self, packet: Packet) -> Result<()> {
-        if !self.is_engineio_connected() || !self.connected.load(Ordering::Acquire) {
+        if !self.is_engineio_connected().await || !self.connected.load(Ordering::Acquire) {
             return Err(Error::IllegalActionBeforeOpen());
         }
 
