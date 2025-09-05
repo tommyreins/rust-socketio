@@ -216,7 +216,7 @@ impl Socket {
         // IMMEDIATE CONNECTIVITY TEST: This is the most reliable check
         // Test actual network connectivity FIRST before relying on socket library state
         let ping_result = timeout(
-            Duration::from_millis(100), // 100ms timeout for ultra-fast detection
+            Duration::from_millis(500), // 500ms timeout for reliable detection
             async {
                 // Send a minimal ping packet to test connectivity
                 let test_packet = EnginePacket::new(EnginePacketId::Ping, Bytes::new());
@@ -262,7 +262,7 @@ impl Socket {
                 }
             },
             Err(_) => {
-                // Timeout occurred - this is a strong indicator of network issues
+                // Timeout occurred (500ms) - this is a strong indicator of network issues
                 false
             }
         }
